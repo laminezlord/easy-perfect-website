@@ -288,6 +288,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red);bac
 textarea{min-height:130px;resize:vertical}
 .form-foot{grid-column:span 2;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
 .form-status{margin:0;color:var(--steel);font-size:.92rem;min-height:1.5em;flex:1 1 220px}
+.form-status a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+#quoteForm button[disabled]{opacity:.6;cursor:wait}
 
 /* footer */
 .foot{background:var(--carbon);padding-block:0 calc(40px + env(safe-area-inset-bottom,0px))}
@@ -495,6 +497,7 @@ textarea{min-height:130px;resize:vertical}
         <div class="c-block" id="cEmail" hidden><span class="mono">Email</span><p><a id="cEmailLink" href="#"></a></p></div>
       </div>
       <form id="quoteForm" novalidate>
+        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;pointer-events:none">
         <div class="field half"><label for="fName">Your name</label><input id="fName" name="name" autocomplete="name" required></div>
         <div class="field half"><label for="fPhone">Phone number</label><input id="fPhone" name="phone" type="tel" autocomplete="tel" required></div>
         <div class="field half"><label for="fType">Project type</label><select id="fType" name="type"><option>Road construction</option><option>Bridge or culvert</option><option>Drainage</option><option>Earthworks / sand filling</option><option>Estate infrastructure</option><option>Building</option><option>Something else</option></select></div>
@@ -529,7 +532,8 @@ textarea{min-height:130px;resize:vertical}
 const CONFIG = {
   phone: "+234 803 720 0823",      // e.g. "+234 803 000 0000"
   email: "epecltd@gmail.com",      // e.g. "info@easyandperfect.com"
-  whatsapp: "2348037200823"    // digits only, e.g. "2348030000000"
+  whatsapp: "2348037200823",   // digits only, e.g. "2348030000000"
+  web3formsKey: ""              // access key from web3forms.com: form enquiries are emailed to the address it was created with
 };
 
 (function(){
@@ -566,14 +570,31 @@ burger.addEventListener('click',()=>setMenu(menu.hidden));
 
 /* form */
 const form=document.getElementById('quoteForm'),status=document.getElementById('formStatus');
-form.addEventListener('submit',e=>{
+const formBtn=form.querySelector('button[type=submit]');
+function openWhatsApp(body){const a=document.createElement('a');a.href='https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(body);a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();}
+function fallback(body,prefix){
+  if(CONFIG.whatsapp){openWhatsApp(body);status.textContent=prefix+'WhatsApp should open with your message ready to send.';}
+  else if(CONFIG.email){location.href='mailto:'+CONFIG.email+'?subject='+encodeURIComponent('Project enquiry')+'&body='+encodeURIComponent(body);status.textContent=prefix+'Your email app should open with the message ready to send.';}
+  else{status.textContent='Online enquiries are not switched on yet. Please visit us on the Lekki-Epe Expressway, Ibeju-Lekki.';}
+}
+form.addEventListener('submit',async e=>{
   e.preventDefault();
   if(!form.checkValidity()){status.textContent='Please add your name, a phone number and a few words about the job.';const bad=form.querySelector(':invalid');bad&&bad.focus();return;}
   const d=Object.fromEntries(new FormData(form));
+  if(d.botcheck)return;
   const body=`Name: ${d.name}\nPhone: ${d.phone}\nProject: ${d.type}\nLocation: ${d.location||'-'}\n\n${d.message}`;
-  if(CONFIG.whatsapp){const a=document.createElement('a');a.href='https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(body);a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();status.textContent='WhatsApp should open with your message ready to send.';}
-  else if(CONFIG.email){location.href='mailto:'+CONFIG.email+'?subject='+encodeURIComponent('Project enquiry: '+d.type)+'&body='+encodeURIComponent(body);status.textContent='Your email app should open with the message ready to send.';}
-  else{status.textContent='Online enquiries are not switched on yet. Please visit us on the Lekki-Epe Expressway, Ibeju-Lekki.';}
+  if(!CONFIG.web3formsKey){fallback(body,'');return;}
+  formBtn.disabled=true;status.textContent='Sending your enquiry…';
+  try{
+    const r=await fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify({access_key:CONFIG.web3formsKey,subject:'New website enquiry: '+d.type+' from '+d.name,from_name:'easyandperfectconstructions.com',
+        Name:d.name,Phone:d.phone,'Project type':d.type,'Site location':d.location||'-',Message:d.message})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||j.success===false)throw new Error(j.message||r.status);
+    form.reset();
+    status.innerHTML='Thank you, your enquiry has been sent. We will call you back shortly.'+(CONFIG.whatsapp?' In a hurry? <a href="https://wa.me/'+CONFIG.whatsapp+'" target="_blank" rel="noopener">Chat on WhatsApp</a>.':'');
+  }catch(err){fallback(body,'We could not send that online, so we are switching to plan B. ');}
+  finally{formBtn.disabled=false;}
 });
 
 /* ---------- road cross-section svg ---------- */
