@@ -235,6 +235,9 @@ html.fine body,html.fine a,html.fine button,html.fine label{cursor:none}
 .stage.is-on{color:var(--sheet)}
 .stage.is-on .mono{color:var(--red)}
 .stage.is-on p{max-height:140px;opacity:1;color:var(--steel)}
+@media (max-width:959px){.process-in{padding-block:78px 20px;gap:16px}.process .stages{margin-top:14px}.stage{padding:9px 0}.process-draw{margin-inline:-6px}}
+@media (max-width:959px) and (max-height:820px){.process .h2{font-size:clamp(2rem,9vw,2.6rem)}.process-in{padding-top:70px}.stage{padding:7px 0}.stage h3{font-size:.98rem}.stage p{font-size:.86rem}.process #xs{max-height:34svh}}
+@media (max-width:959px) and (max-height:700px){.process #xs{max-height:27svh}.process-in{padding-top:64px;gap:12px}.stage p{line-height:1.45}}
 .pbar{height:2px;background:var(--line);margin-top:18px}
 .pbar i{display:block;height:100%;width:100%;background:var(--red);transform-origin:0 50%;transform:scaleX(0)}
 .process-draw{position:relative;min-width:0}
@@ -276,13 +279,14 @@ html.fine body,html.fine a,html.fine button,html.fine label{cursor:none}
 .panel-copy p{margin:0;color:var(--steel)}
 .panel .mono{position:relative;color:var(--red)}
 @media (min-width:900px){
-  .build{height:100svh;display:flex;flex-direction:column}
-  .build-head{padding-block:110px 34px;flex:none}
-  .build-track{display:flex;flex:1;min-height:0;padding-bottom:56px;width:max-content;gap:24px}
-  .panel{width:min(62vw,820px);grid-template-rows:auto 1fr auto;align-content:space-between}
-  .panel svg{max-height:none;height:100%;min-height:0}
-  .panel.end{width:min(40vw,520px);place-content:center}
+  :root:not(.no-motion) .build{height:100svh;display:flex;flex-direction:column}
+  :root:not(.no-motion) .build-head{padding-block:110px 34px;flex:none}
+  :root:not(.no-motion) .build-track{display:flex;flex:1;min-height:0;padding-bottom:56px;width:max-content;gap:24px}
+  :root:not(.no-motion) .panel{width:min(62vw,820px);grid-template-rows:auto 1fr auto;align-content:space-between}
+  :root:not(.no-motion) .panel svg{max-height:none;height:100%;min-height:0}
+  :root:not(.no-motion) .panel.end{width:min(40vw,520px);place-content:center}
 }
+.no-motion .build-track{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 .panel.end{background:var(--red);border-color:var(--red)}
 .panel.end h3{font-family:var(--f-display);font-stretch:75%;font-weight:900;text-transform:uppercase;font-size:clamp(2.2rem,4vw,3.6rem);line-height:.95;margin:0 0 20px}
 .panel.end .btn-red{background:var(--ink)}
