@@ -10,6 +10,10 @@
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0c0d0f">
 <link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png">
+<link rel="icon" type="image/png" sizes="144x144" href="/favicon-144.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
@@ -174,6 +178,11 @@ html.fine body,html.fine a,html.fine button,html.fine label{cursor:none}
 .scroll-cue i{width:1px;height:46px;background:linear-gradient(var(--red),transparent);animation:drip 1.8s infinite}
 @keyframes drip{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 @media (min-width:900px){.hero-annot{display:block}.scroll-cue{display:none}}
+@media (max-width:899px){.hero{min-height:100svh;align-items:flex-end}.hero-in{padding-block:max(38svh,250px) 84px}.hero-title{text-shadow:0 6px 30px rgba(12,13,15,.9)}.hero::after{content:"";position:absolute;inset:auto 0 0 0;height:62%;z-index:1;pointer-events:none;background:linear-gradient(transparent,rgba(12,13,15,.55) 30%,rgba(12,13,15,.82))}}
+@media (max-width:440px){.hero-ctas{flex-wrap:nowrap;gap:10px}.hero-ctas .btn{padding:14px 17px;font-size:.88rem;white-space:nowrap}}
+@media (max-width:899px) and (max-height:700px){.hero-in{padding-top:max(30svh,190px)}.hero-sub{font-size:.95rem;margin-bottom:24px}.eyebrow{margin-bottom:16px}}
+.flash-word{animation:flashw .6s ease-out}
+@keyframes flashw{0%{color:#fff;text-shadow:0 0 30px var(--red-hot),0 0 60px var(--red)}100%{}}
 @media (max-width:899px){#scene{opacity:.55}}
 
 /* marquee */
@@ -870,7 +879,7 @@ function startRotator(){
   gsap.delayedCall(2.2,function next(){
     const a=words[i],b=words[(i+1)%words.length];i=(i+1)%words.length;
     gsap.to(a,{yPercent:-110,duration:.7,ease:'expo.inOut'});
-    gsap.fromTo(b,{yPercent:110},{yPercent:0,duration:.7,ease:'expo.inOut'});
+    gsap.fromTo(b,{yPercent:110},{yPercent:0,duration:.7,ease:'expo.inOut',onComplete:()=>{b.classList.remove('flash-word');void b.offsetWidth;b.classList.add('flash-word');}});
     gsap.delayedCall(2.2,next);
   });
 }
@@ -1233,14 +1242,34 @@ function initScene(staticOnly){
   const dustG=new THREE.BufferGeometry();dustG.setAttribute('position',new THREE.BufferAttribute(dp,3));
   scene.add(new THREE.Points(dustG,new THREE.PointsMaterial({color:0xc4c8cc,size:.06,transparent:true,opacity:.5,depthWrite:false})));
 
+
+  /* sparks + flash when a span lands */
+  const spTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.25,'rgba(255,190,90,1)');r.addColorStop(.6,'rgba(255,60,30,.5)');r.addColorStop(1,'rgba(255,40,20,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
+  const SPN=420,spP=new Float32Array(SPN*3),spV=new Float32Array(SPN*3),spL=new Float32Array(SPN);
+  for(let i=0;i<SPN;i++)spP[i*3+1]=-999;
+  const spG=new THREE.BufferGeometry();spG.setAttribute('position',new THREE.BufferAttribute(spP,3));
+  const sparkPts=new THREE.Points(spG,new THREE.PointsMaterial({map:spTex,size:.42,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:0xffffff}));
+  sparkPts.frustumCulled=false;scene.add(sparkPts);
+  const flash=new THREE.PointLight(0xff6a2a,0,26,2);scene.add(flash);
+  let spI=0,shake=0;const tmpV=new THREE.Vector3();
+  function burst(obj,n){obj.getWorldPosition(tmpV);flash.position.set(tmpV.x,tmpV.y+1.2,tmpV.z);flash.intensity=6;shake=Math.max(shake,narrow?.55:.3);
+    for(let k=0;k<n;k++){const i=(spI++)%SPN;spP[i*3]=tmpV.x+(Math.random()-.5)*SP*.9;spP[i*3+1]=tmpV.y+.1;spP[i*3+2]=tmpV.z+(Math.random()-.5)*RW*.6;
+      const a=Math.random()*Math.PI*2,sp=2+Math.random()*6;spV[i*3]=Math.cos(a)*sp;spV[i*3+1]=3+Math.random()*7;spV[i*3+2]=Math.sin(a)*sp;spL[i]=.7+Math.random()*.7;}}
+  function stepSparks(dt){let any=false;for(let i=0;i<SPN;i++){if(spL[i]<=0)continue;any=true;spL[i]-=dt;spV[i*3+1]-=18*dt;
+      spP[i*3]+=spV[i*3]*dt;spP[i*3+1]+=spV[i*3+1]*dt;spP[i*3+2]+=spV[i*3+2]*dt;
+      if(spP[i*3+1]<DY-3.4){spP[i*3+1]=DY-3.4;spV[i*3+1]*=-.3;spV[i*3]*=.6;spV[i*3+2]*=.6;}
+      if(spL[i]<=0)spP[i*3+1]=-999;}
+    if(any)spG.attributes.position.needsUpdate=true;flash.intensity*=.88;}
   /* framing */
-  let wide=true;
+  let wide=true,narrow=false;
   function size(){const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;
-    wide=w>=900;if(wide)camera.setViewOffset(w,h,-w*.27,0,w,h);else camera.clearViewOffset();camera.updateProjectionMatrix();}
+    wide=w>=900;narrow=!wide;if(wide)camera.setViewOffset(w,h,-w*.27,0,w,h);else camera.setViewOffset(w,h,0,h*.23,w,h);camera.updateProjectionMatrix();}
   size();addEventListener('resize',()=>{size();if(staticOnly)render(0);});
 
   /* build timeline */
   const spanCount=document.getElementById('spanCount');let placed=0;
+  const CAM_END={d:wide?52:50,a:.18,y:12};
+  const cam=staticOnly||wide?{...CAM_END}:{d:17,a:-1.15,y:4.2};
   const tl=window.gsap?gsap.timeline({paused:true}):null;
   if(tl){
     piers.forEach((p,i)=>{tl.to(p.cs.map(c=>c.scale),{y:1,duration:.7,ease:'power3.out',stagger:.06},i*.18)
@@ -1248,7 +1277,8 @@ function initScene(staticOnly){
     tl.from(gantry.position,{y:DY+9,duration:.7,ease:'power3.out'},.5);
     segs.forEach((s,i)=>{const t=1.2+i*.3;
       tl.to(gantry.position,{x:s.position.x,duration:.22,ease:'power2.inOut'},t)
-        .fromTo(s.position,{y:DY+2.2},{y:DY-.18,duration:.3,ease:'power2.inOut',immediateRender:false,onStart:()=>{s.visible=true;},onComplete:()=>{placed=Math.max(placed,i+1);spanCount&&(spanCount.textContent=String(placed).padStart(2,'0'));}},t+.08);});
+        .fromTo(s.position,{y:DY+2.2},{y:DY-.18,duration:.3,ease:'power2.inOut',immediateRender:false,onStart:()=>{s.visible=true;},onComplete:()=>{placed=Math.max(placed,i+1);spanCount&&(spanCount.textContent=String(placed).padStart(2,'0'));burst(s,narrow?34:24);}},t+.08);});
+    if(!wide)tl.to(cam,{d:CAM_END.d,a:CAM_END.a,y:CAM_END.y,duration:5.4,ease:'power2.inOut'},0);
     const tEnd=1.2+NS_*.3+.2;
     tl.to(gantry.position,{y:DY+30,duration:1,ease:'power3.in',onComplete:()=>{gantry.visible=false;}},tEnd)
       .to(deckTop.scale,{x:1,duration:.6,ease:'power2.out'},tEnd)
@@ -1258,21 +1288,26 @@ function initScene(staticOnly){
       .add(()=>{carsG.visible=true;},tEnd+.9)
       .from(carsG.scale,{x:.001,y:.001,z:.001,duration:.6,ease:'back.out(2)'},tEnd+.9);
   }
-  function finish(){if(tl)tl.progress(1);else{piers.forEach(p=>{p.cs.forEach(c=>c.scale.y=1);p.cap.scale.set(1,1,1);});segs.forEach(s=>s.visible=true);deckTop.scale.x=1;pars.forEach(p=>p.scale.x=1);dashes.forEach(d=>d.scale.x=1);lamps.forEach(l=>l.sm.opacity=1);carsG.visible=true;gantry.visible=false;}
+  function finish(){Object.assign(cam,CAM_END);if(tl)tl.progress(1);else{piers.forEach(p=>{p.cs.forEach(c=>c.scale.y=1);p.cap.scale.set(1,1,1);});segs.forEach(s=>s.visible=true);deckTop.scale.x=1;pars.forEach(p=>p.scale.x=1);dashes.forEach(d=>d.scale.x=1);lamps.forEach(l=>l.sm.opacity=1);carsG.visible=true;gantry.visible=false;}
     spanCount&&(spanCount.textContent='10');}
 
   /* loop */
   const m={x:0,y:0},sm={x:0,y:0};let lift=0;
   addEventListener('pointermove',e=>{m.x=e.clientX/innerWidth-.5;m.y=e.clientY/innerHeight-.5;});
+  addEventListener('touchmove',e=>{const t=e.touches[0];if(t){m.x=t.clientX/innerWidth-.5;m.y=(t.clientY/innerHeight-.5)*.4;}},{passive:true});
+  addEventListener('deviceorientation',e=>{if(e.gamma==null)return;m.x=Math.max(-.5,Math.min(.5,e.gamma/50));m.y=Math.max(-.3,Math.min(.3,((e.beta||45)-45)/120));},{passive:true});
   let visible=true;new IntersectionObserver(es=>{visible=es[0].isIntersecting;},{threshold:0}).observe(canvas);
   const clock=new THREE.Clock();let prev=0;
   function render(t){
     const dt=Math.min(.05,t-prev);prev=t;
     sm.x+=(m.x-sm.x)*.05;sm.y+=(m.y-sm.y)*.05;
     rig.rotation.y=-.62+Math.sin(t*.06)*.1+sm.x*.3;
-    const dist=wide?52:64;
-    camera.position.set(Math.sin(.18)*dist,13+lift*8-sm.y*3,Math.cos(.18)*dist);
-    camera.lookAt(0,1.6+lift*3,0);
+    const live=!staticOnly;
+    const ang=cam.a+(narrow&&live?Math.sin(t*.16)*.34:0)+(narrow?lift*.9:0);
+    const dist=cam.d+(narrow&&live?Math.sin(t*.23)*2.2:0)-(narrow?lift*10:0);
+    camera.position.set(Math.sin(ang)*dist+(Math.random()-.5)*shake,cam.y+lift*8-sm.y*3+(Math.random()-.5)*shake,Math.cos(ang)*dist);
+    camera.lookAt(0,1.6+lift*3,0);shake*=.86;
+    if(live)stepSparks(dt);
     /* gantry cable to the segment being lowered */
     const p=cableG.attributes.position;p.setY(1,-1.1-Math.sin(t*2)*.05);p.needsUpdate=true;
     if(carsG.visible&&!staticOnly)cars.forEach(c=>{c.position.x+=c.userData.v*dt;if(c.position.x>60)c.position.x=-60;if(c.position.x<-60)c.position.x=60;});
